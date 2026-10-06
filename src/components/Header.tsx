@@ -69,7 +69,14 @@ export default function Header(): React.JSX.Element {
   };
 
   const closeMenu = (): void => {
-    void animationRef.current?.setOpen(false).then(() => {
+    // Race: se o rAF estiver throttlado (janela em background), o tween
+    // demora — o fechamento NÃO espera: após no máx. 900ms o estado fecha
+    // (React põe `invisible`) e o transform residual fica invisível.
+    const animated = animationRef.current?.setOpen(false) ?? Promise.resolve();
+    const fallback = new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 900);
+    });
+    void Promise.race([animated, fallback]).then(() => {
       setMenuOpen(false);
     });
   };
@@ -161,7 +168,9 @@ export default function Header(): React.JSX.Element {
         role="dialog"
         aria-modal="true"
         aria-label="Menu"
-        className="invisible fixed inset-0 z-overlay flex flex-col justify-between bg-zinc-950/97 px-6 pb-10 pt-24 backdrop-blur-lg md:hidden"
+        className={`${
+          menuOpen ? 'visible' : 'invisible'
+        } fixed inset-0 z-overlay flex flex-col justify-between bg-zinc-950/97 px-6 pb-10 pt-24 backdrop-blur-lg md:hidden`}
       >
         <nav aria-label="Navegação mobile" className="flex flex-col gap-2">
           {[...NAV_ITEMS, { label: 'Orçamento', href: '#orcamento' }].map((item, index) => (

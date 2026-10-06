@@ -82,11 +82,13 @@ export interface MenuAnimation {
 /**
  * Anima o painel do menu mobile. O painel começa com `data-menu-panel` e
  * está fora da tela via CSS (`-translate-y-full`); aqui só controlamos o
- * tween — classes de layout (overflow hidden no body) ficam no componente.
+ * transform. **Visibilidade é do React** (classe `visible`/`invisible`):
+ * depender do tween p/ esconder o painel deixou estado inconsistente quando
+ * o rAF é throttlado (janela em background) — fechado = invisible, sempre.
  */
 export function createMobileMenuAnimation(panel: HTMLElement): MenuAnimation {
   const context = gsap.context(() => {
-    gsap.set(panel, { yPercent: -100, visibility: 'visible' });
+    gsap.set(panel, { yPercent: -100 });
     gsap.set(panel.querySelectorAll('[data-menu-item]'), { y: 24, opacity: 0 });
   }, panel);
 
@@ -95,8 +97,7 @@ export function createMobileMenuAnimation(panel: HTMLElement): MenuAnimation {
   const setOpen = (open: boolean): Promise<void> =>
     new Promise((resolve) => {
       if (prefersReducedMotion()) {
-        panel.style.transform = open ? 'translateY(0)' : 'translateY(-100%)';
-        panel.style.visibility = open ? 'visible' : 'hidden';
+        gsap.set(panel, { yPercent: open ? 0 : -100 });
         resolve();
         return;
       }
