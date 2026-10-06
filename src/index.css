@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-zinc-950 font-sans text-zinc-100 antialiased;
+    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    min-height: 100svh;
+  }
+
+  /* Foco visível acessível em todo interativo */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brass-400 ring-offset-2 ring-offset-zinc-950;
+  }
+
+  ::selection {
+    @apply bg-brass-400/30 text-zinc-50;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display font-light;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Números de processo (01–05) sempre tabulares */
+  .numerals {
+    @apply font-mono tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+}
+
+@layer components {
+  /* Recorte de vidro: borda sutil + brilho interno (sem glassmorphism genérico) */
+  .glass-panel {
+    @apply border border-line bg-surface-raised/60 bg-glass-sheen shadow-glass backdrop-blur-sm;
+  }
+
+  /* Régua metálica fina — divisor estrutural, não decorative hr */
+  .brass-rule {
+    @apply h-px w-full origin-left bg-brass-rule;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Respeita quem pediu menos movimento: animações CSS morrem, GSAP trata por JS */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
