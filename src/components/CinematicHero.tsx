@@ -24,6 +24,100 @@ const SUPPORT =
 export default function CinematicHero(): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(true);
+  /** Estado do <video> é a fonte da verdade; o React só espelha. */
+  const userPausedRef = useRef(false);
+
+  /**
+   * Autoplay robusto no celular.
+   *
+   * iOS/Android podem recusar o autoplay (Low Power Mode, data saver,
+   * política do navegador) mesmo com muted+playsinline. Plano:
+   * 1. setar `muted` como PROPERTY (o React renderiza o atributo, mas a
+   *    property é o que o navegador lê na hora do play());
+   * 2. tryPlay() no mount e em `canplay`;
+   * 3. se recusado, re-tentar na primeira interação do usuário;
+   * 4. pausar quando o hero sai de vista (economia) e retomar ao voltar;
+   * 5. ouvir `play`/`pause` do próprio elemento para o botão nunca mentir.
+   */
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    video.muted = true;
+    video.defaultMuted = true;
+
+    const tryPlay = (): void => {
+      if (userPausedRef.current) {
+        return;
+      }
+      const attempt = video.play();
+      if (attempt !== undefined) {
+        attempt.then(
+          () => setPlaying(true),
+          () => setPlaying(false),
+        );
+      }
+    };
+
+    /* Retry em interação (autoplay recusado até o primeiro toque). */
+    const onInteract = (): void => {
+      detachInteraction();
+      tryPlay();
+    };
+    const attachInteraction = (): void => {
+      document.addEventListener('pointerdown', onInteract, { capture: true });
+      document.addEventListener('touchstart', onInteract, { capture: true, passive: true });
+    };
+    const detachInteraction = (): void => {
+      document.removeEventListener('pointerdown', onInteract, { capture: true });
+      document.removeEventListener('touchstart', onInteract, { capture: true });
+    };
+    const onCanPlay = (): void => tryPlay();
+    const onPlay = (): void => setPlaying(true);
+    const onPause = (): void => setPlaying(false);
+    const onVisibility = (): void => {
+      if (!document.hidden) {
+        tryPlay();
+      }
+    };
+
+    video.addEventListener('canplay', onCanPlay);
+    video.addEventListener('play', onPlay);
+    video.addEventListener('pause', onPause);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    /* Fora de vista → pausa (economia de bateria/dados); ao voltar, retoma. */
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            tryPlay();
+          } else if (!userPausedRef.current) {
+            video.pause();
+          }
+        }
+      },
+      { threshold: 0.15 },
+    );
+    observer.observe(video);
+
+    if (video.readyState >= 2) {
+      tryPlay();
+    } else {
+      attachInteraction();
+    }
+
+    return () => {
+      video.removeEventListener('canplay', onCanPlay);
+      video.removeEventListener('play', onPlay);
+      video.removeEventListener('pause', onPause);
+      document.removeEventListener('visibilitychange', onVisibility);
+      detachInteraction();
+      observer.disconnect();
+    };
+  }, []);
 
   /* Despacha o gatilho da intro do hero de forma idempotente. */
   useEffect(() => {
@@ -60,11 +154,13 @@ export default function CinematicHero(): React.JSX.Element {
       return;
     }
     if (video.paused) {
+      userPausedRef.current = false;
       void video.play().then(
         () => setPlaying(true),
         () => setPlaying(false),
       );
     } else {
+      userPausedRef.current = true;
       video.pause();
       setPlaying(false);
     }
@@ -91,7 +187,7 @@ export default function CinematicHero(): React.JSX.Element {
             aria-hidden="true"
             tabIndex={-1}
           >
-            <source src="/videos/antonio-vidros-hero-mobile.mp4" media="(max-width: 767px)" />
+            <source src="/videos/antonio-vidros-hero-mobile.mp4" type="video/mp4" media="(max-width: 767px)" />
             <source src="/videos/antonio-vidros-hero.webm" type="video/webm" />
             <source src="/videos/antonio-vidros-hero.mp4" type="video/mp4" />
           </video>
